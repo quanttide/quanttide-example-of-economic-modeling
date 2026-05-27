@@ -56,8 +56,6 @@ theorem profit_with_listing_fee
       nlinarith
     nlinarith
   · intro h_neq
-    have num_pos : ((p.A + p.β * p.B + p.α * p.c - (p.β + p.γ * p.α) * pl) ^ 2) > 0 := by
-      apply pow_pos (sub_ne_zero.mpr h_neq) 2
     have den_pos : 4 * p.α * (1 - p.β * p.γ) > 0 := by nlinarith
     dsimp [pi_star]
     positivity

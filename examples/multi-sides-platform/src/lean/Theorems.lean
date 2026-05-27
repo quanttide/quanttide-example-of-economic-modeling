@@ -83,9 +83,23 @@ theorem optimal_profit_closed_form
     let Q_star := (p.A + p.β * p.B - p.α * p.c) / (2 * (1 - p.β * p.γ)) in
     let pi_star := ((p.A + p.β * p.B - p.α * p.c) ^ 2) / (4 * p.α * (1 - p.β * p.γ)) in
     platform_profit p eq.vars = pi_star := by
-  -- 依赖 optimal_pu_listing_only_unsaturated → eq.vars.pu = pu_star
-  -- 代入 demand_eq, entry_eq 消去 Q,N
-  sorry
+  intro pu_star Q_star pi_star
+  have h_pu : eq.vars.pu = (p.A + p.β * p.B + p.α * p.c) / (2 * p.α) :=
+    optimal_pu_listing_only_unsaturated p eq h_pf_zero h_pl_zero h_lam_zero
+  -- 从 entry_eq 解出 N（pf=pl=0）
+  have h_entry_N : eq.vars.N = p.B + p.γ * eq.vars.Q := by
+    have h_entry := eq.h_entry
+    rw [h_pf_zero, h_pl_zero] at h_entry
+    nlinarith
+  -- 从 demand_eq 消去 N 解出 Q（pu=pu_star, lam=0）
+  have hQ_expr : eq.vars.Q = Q_star := by
+    have h_demand := eq.h_demand
+    rw [h_lam_zero, h_pu, h_entry_N] at h_demand
+    dsimp [Q_star]
+    nlinarith
+  rw [h_pu, hQ_expr, h_pf_zero, h_pl_zero, h_lam_zero]
+  dsimp [platform_profit, pi_star]
+  ring
 
 /-- 盈利可行性判据（pf = pl = lam = 0）
 
