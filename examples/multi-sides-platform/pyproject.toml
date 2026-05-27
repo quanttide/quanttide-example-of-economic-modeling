@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "multi-sides-platform"
+version = "0.1.0"
+description = "三边市场 MCP 模型 — 结果交付型城际出行平台"
+requires-python = ">=3.11"
+dependencies = [
+    "pyomo>=6.0",
+    "path-solver",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
