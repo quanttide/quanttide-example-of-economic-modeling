@@ -1,0 +1,6 @@
+name = "multi-sides-platform"
+version = "0.1.0"
+
+[[lean_lib]]
+name = "MultiSidesPlatform"
+srcDir = "src/lean"
