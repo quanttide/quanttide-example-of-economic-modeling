@@ -1,0 +1,9 @@
+name = "multi-sides-platform"
+version = "0.1.0"
+
+[dependencies]
+mathlib = { git = "https://github.com/leanprover-community/mathlib4.git" }
+
+[[lean_lib]]
+name = "Model"
+srcDir = "src/lean"
