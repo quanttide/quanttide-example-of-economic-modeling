@@ -34,6 +34,5 @@
 
 ## 待定
 
-- Rust 产线集成（依赖 P0/P1 完成）
 - 参数网格搜索（依赖 `scan.py` 可执行化）
 - `docs/tutorial.md`
