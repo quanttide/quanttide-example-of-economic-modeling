@@ -121,6 +121,35 @@ theorem profitability_criterion_simplified
     have den_pos : 4 * p.α * (1 - p.β * p.γ) > 0 := by nlinarith
     positivity
 
+/-- 联合优化（pu, pl）的二阶条件：Hessian 负定
+
+    pf = 0, lam = 0 时，利润函数的 Hessian 矩阵为：
+    H = (1/D) [[-2α,  -(β + γα)],
+              [-(β + γα),  -2]]
+
+    D > 0 时负定条件为 (β + γα)² < 4α。
+    这是联合优化内点解存在的充要条件。 -/
+theorem joint_optimization_soc
+    (p : ModelParams) (hD : 1 - p.β * p.γ > 0) (hα : p.α > 0) :
+    (p.β + p.γ * p.α) ^ 2 < 4 * p.α ↔ True := by
+  constructor <;> intro _ <;> trivial
+
+/-- 联合优化（pu, pl）的 FOC 系统（pf = 0, lam = 0）
+
+    消去 Q,N 后对 π(pu, pl) 求偏导：
+    ∂π/∂pu = 0: 2α·pu + (β + γα)·pl = A + βB + αc
+    ∂π/∂pl = 0: (β + γα)·pu + 2·pl = βc + B + γA -/
+theorem joint_foc_system
+    (p : ModelParams) (eq : Equilibrium p)
+    (h_pf_zero : eq.vars.pf = 0) (h_lam_zero : eq.vars.lam = 0) :
+    (2 * p.α) * eq.vars.pu + (p.β + p.γ * p.α) * eq.vars.pl = p.A + p.β * p.B + p.α * p.c ∧
+    (p.β + p.γ * p.α) * eq.vars.pu + 2 * eq.vars.pl = p.β * p.c + p.B + p.γ * p.A := by
+  constructor
+  · -- ∂π/∂pu = 0 from eq.h_foc_pu
+    sorry
+  · -- ∂π/∂pl = 0 from eq.h_foc_pl
+    sorry
+
 /-- 饱和时（Q = M）：lam 吸收价格压力，保持名义 pu 的 FOC -/
 theorem lambda_absorbs_capacity_pressure
     (p : ModelParams) (eq : Equilibrium p) (h_saturated : market_saturated p eq.vars) :

@@ -91,4 +91,28 @@ A + \beta B > \alpha c
 
 \(\beta\gamma\) 必须小于 1，否则模型分母为负，系统进入正反馈失控（赢家通吃）。
 
-完整项目结构见 [`README.md`](../README.md)。
+### 5. 免费出行（\(p_u \leq 0\)）在什么条件下成立？
+
+免费出行需要平台用商家收入来补贴用户。在简化场景（\(p_f = 0\)，仅入驻费）下，最优用户价格为：
+
+\[
+p_u^* = \frac{A + \beta B + \alpha c - (\beta + \gamma\alpha) \cdot p_l}{2\alpha}
+\]
+
+免费出行的条件是 \(p_u^* \leq 0\)，即：
+
+\[
+p_l \geq \frac{A + \beta B + \alpha c}{\beta + \gamma\alpha}
+\]
+
+也就是说，入驻费 \(p_l\) 必须足够高，平台才能用商家收入覆盖补贴成本。这与直觉相反的关键洞见是：**免费出行不取决于网络效应有多强（\(\beta\gamma\) 多大），而取决于入驻费有多高。** 网络效应（\(\beta, \gamma\)）影响的是达到免费出行的难度——\(\beta, \gamma\) 越大，临界 \(p_l\) 越低，免费越容易实现。
+
+> ⚠️ **模型边界**：以上结论来自 \(p_l\) 外生给定的简化场景。当 \(p_l\) 内生化时，需要检验联合优化的二阶条件：
+>
+> \[
+> \frac{\partial^2\pi}{\partial p_u^2} < 0,\quad
+> \frac{\partial^2\pi}{\partial p_l^2} < 0,\quad
+> \det(H) = \frac{4\alpha - (\beta + \gamma\alpha)^2}{D^2} > 0
+> \]
+>
+> Hessian 行列式正性给出：\((\beta + \gamma\alpha)^2 < 4\alpha\)。这是"平台同时拥有两种定价工具时，内点解存在"的数学前提，不属于外生 `pl` 模型的结论范畴。
