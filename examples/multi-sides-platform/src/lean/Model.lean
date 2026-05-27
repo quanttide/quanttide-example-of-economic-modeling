@@ -96,7 +96,7 @@ def foc_pu_eq (p : ModelParams) (pu pf pl λ : ℝ) : ℝ :=
   let Qn := Q_num p p_eff pf pl
   let Nn := N_num p p_eff pf pl
   let Dv := D p
-  Dv * (Qn - p.α * (p_eff - p.c)) - pf * p.α * (p.γ * Qn + Nn) - pl * Dv * p.γ * p.α
+  Dv * (Qn - p.α * (pu - p.c)) - pf * p.α * (p.γ * Qn + Nn) - pl * Dv * p.γ * p.α
 
 /-- 等价性：D ≠ 0 时 foc_pu_eq = 0 ↔ ∂π_reduced/∂pu = 0 -/
 lemma foc_pu_eq_iff (p : ModelParams) (pu pf pl λ : ℝ) (hD : D p ≠ 0) :

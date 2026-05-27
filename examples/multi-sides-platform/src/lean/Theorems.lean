@@ -64,11 +64,19 @@ theorem optimal_pu_listing_only_unsaturated
     (h_λ_zero : eq.vars.λ = 0) :
     let pu_star := (p.A + p.β * p.B + p.α * p.c) / (2 * p.α) in
     eq.vars.pu = pu_star := by
-  -- 代入 pf=pl=λ=0 到 foc_pu_eq = 0 求解：
-  -- foc_pu_eq = D·(Qn - α·(pu-c))  (因 pf=pl=λ=0 时 pf·pl 项为零)
-  -- foc_pu_eq = 0 → Qn = α·(pu-c)
-  -- 展开 Qn = A + β·B - α·pu，代入化简得 pu*
-  sorry
+  have h_foc : foc_pu_eq p eq.vars.pu eq.vars.pf eq.vars.pl eq.vars.λ = 0 := eq.h_foc_pu
+  rw [h_pf_zero, h_pl_zero, h_λ_zero] at h_foc
+  unfold foc_pu_eq at h_foc
+  simp at h_foc
+  have hD : D p ≠ 0 := hD_ne_zero p
+  have h_factor : D p * (Q_num p eq.vars.pu 0 0 - p.α * (eq.vars.pu - p.c)) = 0 := h_foc
+  have h_zero : Q_num p eq.vars.pu 0 0 - p.α * (eq.vars.pu - p.c) = 0 := by
+    apply mul_eq_zero.mp at h_factor
+    rcases h_factor with (h | h)
+    · exact absurd h hD
+    · exact h
+  unfold Q_num at h_zero
+  nlinarith
 
 /-- 饱和时（Q = M）：λ 吸收价格压力，保持名义 pu 的 FOC -/
 theorem lambda_absorbs_capacity_pressure

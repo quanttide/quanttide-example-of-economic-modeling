@@ -28,10 +28,10 @@ structure SimplificationAssumption (p : ModelParams) where
     pl ≥ (A + β·B + α·c) / (β + γ·α)
 
     即入驻费需足够高，平台才能用商家收入补贴用户出行。 -/
-structure CriticalCondition (p : ModelParams) where
-  pl_star        : ℝ   -- 使 pu* = 0 的临界入驻费
-  h_pl_above     : ℝ ≥ pl_star  -- 实际 pl ≥ 临界值
-  h_network_ok   : p.β + p.γ * p.α ≠ 0  -- 分母非零
+structure CriticalCondition (p : ModelParams) (pl : ℝ) where
+  pl_star        : ℝ := (p.A + p.β * p.B + p.α * p.c) / (p.β + p.γ * p.α)
+  h_pl_above     : pl ≥ pl_star
+  h_network_ok   : p.β + p.γ * p.α ≠ 0
   h_free_ride    : ∃ (eq : Equilibrium p), free_ride_achieved eq.vars
 
 /-- 命题：当入驻费 pl 足够高时，存在均衡使得 pu ≤ 0。
