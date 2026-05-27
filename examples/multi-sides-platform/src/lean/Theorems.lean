@@ -78,6 +78,43 @@ theorem optimal_pu_listing_only_unsaturated
   unfold Q_num at h_zero
   sorry
 
+/-- 闭式最优利润（pf = pl = lam = 0）
+
+    代入 pu* = (A + βB + αc)/(2α) 到 π = (pu-c)·Q 得：
+    π* = (A + βB - αc)² / (4α·(1 - βγ)) -/
+theorem optimal_profit_closed_form
+    (p : ModelParams) (eq : Equilibrium p)
+    (h_pf_zero : eq.vars.pf = 0) (h_pl_zero : eq.vars.pl = 0)
+    (h_lam_zero : eq.vars.lam = 0) :
+    let pu_star := (p.A + p.β * p.B + p.α * p.c) / (2 * p.α) in
+    let Q_star := (p.A + p.β * p.B - p.α * p.c) / (2 * (1 - p.β * p.γ)) in
+    let pi_star := ((p.A + p.β * p.B - p.α * p.c) ^ 2) / (4 * p.α * (1 - p.β * p.γ)) in
+    platform_profit p eq.vars = pi_star := by
+  -- 由 optimal_pu_listing_only_unsaturated 得 eq.vars.pu = pu_star
+  -- 代入 demand_eq, entry_eq 消去 Q,N 得利润表达式
+  sorry
+
+/-- 盈利可行性判据（pf = pl = lam = 0）
+
+    最优利润 π* > 0 当且仅当 A + β·B > α·c。
+    即净基础需求（潜在出行 - 成本门槛）为正。 -/
+theorem profitability_criterion_simplified
+    (p : ModelParams) (hA : p.A > 0) (hα : p.α > 0) (hD : 1 - p.β * p.γ > 0) :
+    let pi_star := ((p.A + p.β * p.B - p.α * p.c) ^ 2) / (4 * p.α * (1 - p.β * p.γ)) in
+    pi_star > 0 ↔ p.A + p.β * p.B > p.α * p.c := by
+  constructor
+  · intro hpi
+    by_contra! hle
+    have : pi_star = 0 := by
+      dsimp
+      nlinarith
+    nlinarith
+  · intro hgt
+    have num_pos : (p.A + p.β * p.B - p.α * p.c) ^ 2 > 0 := by
+      nlinarith
+    have den_pos : 4 * p.α * (1 - p.β * p.γ) > 0 := by nlinarith
+    positivity
+
 /-- 饱和时（Q = M）：lam 吸收价格压力，保持名义 pu 的 FOC -/
 theorem lambda_absorbs_capacity_pressure
     (p : ModelParams) (eq : Equilibrium p) (h_saturated : market_saturated p eq.vars) :

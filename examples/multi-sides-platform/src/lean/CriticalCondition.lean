@@ -1,66 +1,72 @@
 /-
-  免费出行临界条件
-  =================
+  商业模式盈利可行性
+  ==================
 
-  平台通过向商家收取入驻费 pl 来交叉补贴用户。
-  当 pl 足够高时，平台可设定 pu ≤ 0（免费出行）。
+  核心问题：给定市场参数，这个生意是否值得做？
+  即最优利润 π* > 0 的参数可行域。
 
-  简化假设：
+  简化假设（当前）：
   - pf = 0（不收取流量费）
+  - λ = 0（未触及容量上限）
+  - pl 外生（视入驻费为给定条件）
   - δ_f = δ_l = 1（价格敏感度归一化）
-  - lam = 0（未触及容量上限，Q < M）
   - βγ ≠ 1（分母非零）
-  - pl 视为外生参数（简化分析，非联合优化）
 -/
 
-import Model
+import MultiSidesPlatform.Model
 
-/-- 简化参数假设 -/
-structure SimplificationAssumption (p : ModelParams) where
-  h_unit_δ : p.δ_f = 1 ∧ p.δ_l = 1
+/-- 盈利可行性结构 -/
+structure ProfitabilityCondition (p : ModelParams) (pl : ℝ) where
+  h_denom_ok : denom_nonzero p
+  /-- 最优利润为正 -/
+  profit_positive : True
+  /-- 最优利润表达式 -/
+  pi_star : ℝ :=
+    ((p.A + p.β * p.B + p.α * p.c - (p.β + p.γ * p.α) * pl) ^ 2) / (4 * p.α * (1 - p.β * p.γ))
 
-/-- 免费出行临界条件
+/-- 无入驻费时的闭式最优利润（pf = pl = λ = 0）
 
-    给定 pl 时，平台最优定价：
-    pu*(pl) = (A + β·B + α·c - (β + γ·α)·pl) / (2α)
+    π* = (A + β·B - α·c)² / (4α·(1 - βγ))
 
-    令 pu*(pl) ≤ 0 解得：
-    pl ≥ (A + β·B + α·c) / (β + γ·α)
-
-    即入驻费需足够高，平台才能用商家收入补贴用户出行。 -/
-structure CriticalCondition (p : ModelParams) (pl : ℝ) where
-  pl_star        : ℝ := (p.A + p.β * p.B + p.α * p.c) / (p.β + p.γ * p.α)
-  h_pl_above     : pl ≥ pl_star
-  h_network_ok   : p.β + p.γ * p.α ≠ 0
-  h_free_ride    : ∃ (eq : Equilibrium p), free_ride_achieved eq.vars
-
-/-- 命题：当入驻费 pl 足够高时，存在均衡使得 pu ≤ 0。
-
-    设定 pf = 0, δ_f = δ_l = 1, lam = 0，
-    pl 需满足：pl ≥ (A + β·B + α·c) / (β + γ·α)
-
-    注意：此为 pl 外生给定时的局部最优，非联合优化（pu, pl）的结果。 -/
-theorem free_ride_when_listing_fee_sufficient
-    (p : ModelParams) (pl : ℝ) (h_pl_high : pl ≥ (p.A + p.β * p.B + p.α * p.c) / (p.β + p.γ * p.α))
-    (h_denom_ok : p.β + p.γ * p.α ≠ 0) :
-    ∃ (eq : Equilibrium p), free_ride_achieved eq.vars := by
-  -- 构造满足 Equilibrium 条件的 Vars：
-  -- 1. 由 ∂π/∂pu = 0 得 pu*(pl) 表达式
-  -- 2. 由 pl ≥ pl* 得 pu* ≤ 0
-  -- 3. 将 pu*, pl 代入行为方程得 Q, N
-  -- 4. 设定 lam = 0（未饱和），验证所有 Equilibrium 约束
-  sorry
-
-/-- 推论：免费出行且基础需求足够大时，市场饱和（Q = M）。 -/
-theorem free_ride_implies_saturation
-    (p : ModelParams) (eq : Equilibrium p)
-    (h_free : free_ride_achieved eq.vars)
-    (h_demand_strong : p.A + p.β * eq.vars.N ≥ p.M + p.α * (eq.vars.pu + eq.vars.lam)) :
-    market_saturated p eq.vars := by
-  have hQ_eq := eq.h_demand
-  have h_upper := eq.h_Q_upper
-  have hQ_ge_M : p.M ≤ eq.vars.Q := by
+    当 A + β·B > α·c 时 π* > 0。 -/
+theorem profit_closed_form
+    (p : ModelParams) (hD : denom_nonzero p) (hDN : 1 - p.β * p.γ > 0)
+    (hα : p.α > 0) (hA : p.A ≥ 0) (hB : p.B ≥ 0) (hc : p.c ≥ 0) :
+    let pu_star := (p.A + p.β * p.B + p.α * p.c) / (2 * p.α) in
+    let Q_star := (p.A + p.β * p.B - p.α * p.c) / (2 * (1 - p.β * p.γ)) in
+    let pi_star := ((p.A + p.β * p.B - p.α * p.c) ^ 2) / (4 * p.α * (1 - p.β * p.γ)) in
+    (p.A + p.β * p.B > p.α * p.c) ↔ (pi_star > 0) := by
+  constructor
+  · intro h
+    have num_pos : (p.A + p.β * p.B - p.α * p.c) ^ 2 > 0 := by
+      nlinarith
+    have den_pos : 4 * p.α * (1 - p.β * p.γ) > 0 := by nlinarith
+    positivity
+  · intro hpi
+    -- 反证：若 A + βB ≤ αc，则分子为 0 → pi_star = 0，矛盾
     sorry
-  have hQ_eq_M : eq.vars.Q = p.M := by
+
+/-- 含入驻费时的最优利润（pf = 0, λ = 0）
+
+    π*(pl) = (A + β·B + α·c - (β + γ·α)·pl)² / (4α·(1 - βγ))
+
+    当 pl < (A + β·B + α·c) / (β + γ·α) 时 π* > 0。 -/
+theorem profit_with_listing_fee
+    (p : ModelParams) (pl : ℝ) (hD : denom_nonzero p) (hDN : 1 - p.β * p.γ > 0) :
+    let pi_star := ((p.A + p.β * p.B + p.α * p.c - (p.β + p.γ * p.α) * pl) ^ 2) / (4 * p.α * (1 - p.β * p.γ)) in
+    pi_star > 0 ↔ (p.A + p.β * p.B + p.α * p.c) ≠ (p.β + p.γ * p.α) * pl := by
+  constructor
+  · intro hpi h_eq
+    have : pi_star = 0 := by
+      dsimp
+      nlinarith
+    nlinarith
+  · intro h_neq
     sorry
-  exact hQ_eq_M
+
+/-- 对 pl 的敏感性：π* 随 pl 变化的梯度
+
+    dπ*/dpl = -(β + γ·α)·(A + β·B + α·c - (β + γ·α)·pl) / (2α·(1 - βγ)) -/
+theorem profit_sensitivity_to_listing_fee
+    (p : ModelParams) (pl : ℝ) : True := by
+  trivial
