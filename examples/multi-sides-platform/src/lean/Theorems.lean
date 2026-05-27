@@ -1,7 +1,6 @@
 /-
   MCP 均衡定理
   ============
-  均衡解的基本性质，依赖 Model.lean 的定义。
 -/
 
 import MultiSidesPlatform.Model
@@ -49,30 +48,35 @@ theorem profit_linear_in_pu_unsaturated
   ext pu
   ring
 
-/-- 简化场景（pf = pl = 0, λ = 0）：均衡 pu 的闭式解
+/-- 简化场景（pf = pl = 0, λ = 0）下 pu 的闭式最优解
 
-    pu* = (A + β·B - c·(1 - β·γ)) / (2α)   （βγ ≠ 1） -/
+    设 pf = pl = λ = 0，由需求与入驻方程消去 N：
+    Q = (A + β·B - α·pu) / (1 - β·γ)
+    π = (pu - c)·Q
+
+    利润对 pu 求导（分母为常数）：
+    dπ/dpu ∝ (A + β·B - α·pu) - α·(pu - c) = A + β·B + α·c - 2α·pu
+
+    令为 0 得：pu* = (A + β·B + α·c) / (2α)   （βγ ≠ 1） -/
 theorem optimal_pu_listing_only_unsaturated
     (p : ModelParams) (eq : Equilibrium p)
     (h_pf_zero : eq.vars.pf = 0) (h_pl_zero : eq.vars.pl = 0)
     (h_λ_zero : eq.vars.λ = 0) :
-    let pu_star := (p.A + p.β * p.B - p.c * (1 - p.β * p.γ)) / (2 * p.α) in
+    let pu_star := (p.A + p.β * p.B + p.α * p.c) / (2 * p.α) in
     eq.vars.pu = pu_star := by
-  -- 依赖 eq.h_foc_pu 展开 foc_pu_cond
-  -- 代入 pf=pl=λ=0 后 foc_pu_eq = 0 可解出 pu
+  -- 代入 pf=pl=λ=0 到 foc_pu_eq = 0 求解：
+  -- foc_pu_eq = D·(Qn - α·(pu-c))  (因 pf=pl=λ=0 时 pf·pl 项为零)
+  -- foc_pu_eq = 0 → Qn = α·(pu-c)
+  -- 展开 Qn = A + β·B - α·pu，代入化简得 pu*
   sorry
 
-/-- 饱和时（Q = M）：λ 吸收价格压力，使名义 pu 保持 FOC 条件 -/
+/-- 饱和时（Q = M）：λ 吸收价格压力，保持名义 pu 的 FOC -/
 theorem lambda_absorbs_capacity_pressure
     (p : ModelParams) (eq : Equilibrium p) (h_saturated : market_saturated p eq.vars) :
     eq.vars.pu + eq.vars.λ = (p.A + p.β * eq.vars.N - p.M) / p.α := by
-  have h_demand := eq.h_demand
-  rcases h_demand with hQ_eq
-  -- Q = A - α·(pu + λ) + β·N → pu + λ = (A + β·N - Q) / α
-  -- Q = M（饱和）→ pu + λ = (A + β·N - M) / α
+  have hQ_eq := eq.h_demand
   have hQ_eq_M := h_saturated
-  have h_expr : eq.vars.Q = p.M := hQ_eq_M
   have : eq.vars.pu + eq.vars.λ = (p.A + p.β * eq.vars.N - eq.vars.Q) / p.α := by
     linarith
-  rw [h_expr] at this
+  rw [hQ_eq_M] at this
   exact this
