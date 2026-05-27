@@ -18,26 +18,21 @@ structure ModelParams where
   δ_f   : ℝ   -- 商家对流量费敏感度
   δ_l   : ℝ   -- 商家对入驻费敏感度
   c     : ℝ   -- 出行技术成本
-  -- 合理的参数范围假设
+  -- 合理参数范围假设
   hA  : A ≥ 0
   hM  : M > 0
   hα  : α > 0
-  hγ  : γ > 0
-  hδf : δ_f > 0
-  hδl : δ_l > 0
+  hγ  : γ ≥ 0          -- γ=0 是有效场景（用户量不影响入驻）
+  hδf : δ_f ≥ 0        -- δ=0 是有效场景（价格不敏感）
+  hδl : δ_l ≥ 0
 
-/-- 模型内生变量 -/
+/-- 模型内生变量（不含约束，约束在 Equilibrium 中定义） -/
 structure ModelVars where
   pu : ℝ   -- 用户价格（可负，即补贴）
   pf : ℝ   -- 按流量收费
   pl : ℝ   -- 按入驻收费
   Q  : ℝ   -- 出行量
   N  : ℝ   -- 入驻商家数
-  -- 非负约束与上界
-  hQ  : 0 ≤ Q ∧ Q ≤ ?_.M   -- 无法直接引用外部 M，改用命题
-  hN  : 0 ≤ N
-  hpf : 0 ≤ pf
-  hpl : 0 ≤ pl
 
 /-- 用户需求方程：Q = A - α·pu + β·N -/
 def demand_eq (p : ModelParams) (v : ModelVars) : Prop :=
@@ -51,22 +46,46 @@ def entry_eq (p : ModelParams) (v : ModelVars) : Prop :=
 def platform_profit (p : ModelParams) (v : ModelVars) : ℝ :=
   (v.pu - p.c) * v.Q + v.pf * v.N * v.Q + v.pl * v.N
 
-/-- MCP 均衡：所有变量满足其互补条件 -/
+/-- 从需求方程和入驻方程解出 Q 关于价格的闭式（βγ ≠ 1 时成立） -/
+def Q_of_p (p : ModelParams) (pu pf pl : ℝ) : ℝ :=
+  (p.A - p.α * pu + p.β * (p.B - p.δ_f * pf - p.δ_l * pl)) / (1 - p.β * p.γ)
+
+/-- 从需求方程和入驻方程解出 N 关于价格的闭式（βγ ≠ 1 时成立） -/
+def N_of_p (p : ModelParams) (pu pf pl : ℝ) : ℝ :=
+  (p.B - p.δ_f * pf - p.δ_l * pl + p.γ * (p.A - p.α * pu)) / (1 - p.β * p.γ)
+
+/-- 代入均衡后的平台利润（仅依赖价格变量，Q,N 已展开） -/
+def π (p : ModelParams) (pu pf pl : ℝ) : ℝ :=
+  let Q := Q_of_p p pu pf pl
+  let N := N_of_p p pu pf pl
+  (pu - p.c) * Q + pf * N * Q + pl * N
+
+/-- FOC 条件：pu 自由 → ∂π/∂pu = 0
+    完整解析形式需展开 π，当前为占位（参见 Theorems.lean） -/
+def foc_pu_cond (p : ModelParams) (pu pf pl : ℝ) : Prop :=
+  True   -- TODO: 替换为 ∂π/∂pu = 0 的显式条件
+
+/-- FOC 条件：pf ≥ 0 → pf·(-∂π/∂pf) = 0 ∧ -∂π/∂pf ≥ 0 -/
+def foc_pf_cond (p : ModelParams) (pu pf pl : ℝ) : Prop :=
+  True   -- TODO
+
+/-- FOC 条件：pl ≥ 0 → pl·(-∂π/∂pl) = 0 ∧ -∂π/∂pl ≥ 0 -/
+def foc_pl_cond (p : ModelParams) (pu pf pl : ℝ) : Prop :=
+  True   -- TODO
+
+/-- MCP 均衡 -/
 structure Equilibrium (p : ModelParams) where
-  vars     : ModelVars
-  h_demand : demand_eq p vars        -- pu free → 用户市场出清
-  h_entry  : entry_eq p vars         -- N ≥ 0 → 商家入驻实现
-  h_foc_pf : 0 ≤ vars.pf ∧ vars.pf * (-deriv_profit_pf p vars) = 0
-  h_foc_pl : 0 ≤ vars.pl ∧ vars.pl * (-deriv_profit_pl p vars) = 0
-  h_foc_pu : 0 = deriv_profit_pu p vars
-  h_Q_bound : 0 ≤ vars.Q ∧ vars.Q ≤ p.M
-  where
-    deriv_profit_pf (p : ModelParams) (v : ModelVars) : ℝ :=
-      v.N * v.Q
-    deriv_profit_pl (p : ModelParams) (v : ModelVars) : ℝ :=
-      v.N
-    deriv_profit_pu (p : ModelParams) (v : ModelVars) : ℝ :=
-      v.Q
+  vars          : ModelVars
+  h_demand      : demand_eq p vars
+  h_entry       : entry_eq p vars
+  h_pf_nonneg   : 0 ≤ vars.pf
+  h_pl_nonneg   : 0 ≤ vars.pl
+  h_N_nonneg    : 0 ≤ vars.N
+  h_Q_nonneg    : 0 ≤ vars.Q
+  h_Q_upper     : vars.Q ≤ p.M
+  h_foc_pu      : foc_pu_cond p vars.pu vars.pf vars.pl
+  h_foc_pf      : foc_pf_cond p vars.pu vars.pf vars.pl
+  h_foc_pl      : foc_pl_cond p vars.pu vars.pf vars.pl
 
 /-- 免费出行定义：pu ≤ 0 -/
 def free_ride_achieved (v : ModelVars) : Prop :=

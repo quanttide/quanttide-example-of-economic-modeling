@@ -1,51 +1,44 @@
 /-
   MCP 均衡定理
   ============
-  证明均衡解的存在性、唯一性及单调性。
+  均衡解的基本性质：单调性、边界行为、简化场景下的闭式解。
 
-  依赖 Model.lean 中的定义。
-  当前为标准框架占位，实值分析部分需 mathlib.
+  依赖于 Model.lean 的定义。实值分析部分需 mathlib。
 -/
 
 import MultiSidesPlatform.Model
 open Real
 
-/-- 当商家入驻意愿非正时，均衡入驻数为零 -/
+/-- 引理：当入驻意愿 ≤ 0 时，均衡入驻数为零 -/
 theorem zero_entry_when_nonpositive_desire
     (p : ModelParams) (eq : Equilibrium p) :
     p.B + p.γ * eq.vars.Q - p.δ_f * eq.vars.pf - p.δ_l * eq.vars.pl ≤ 0 →
     eq.vars.N = 0 := by
   intro h_nonpos
-  have h_entry := eq.h_entry
-  rcases h_entry with hN_eq
-  -- 由 entry_eq：N = B + γ·Q - δ_f·pf - δ_l·pl ≤ 0
-  -- 结合 N ≥ 0，得 N = 0
-  have h_nonneg : 0 ≤ eq.vars.N := eq.vars.hN
+  have h_eq := eq.h_entry          -- eq.h_entry 是 entry_eq p eq.vars 类型
+  rcases h_eq with hN_eq           -- entry_eq 展开为等式
+  have h_nonneg : 0 ≤ eq.vars.N := eq.h_N_nonneg
   nlinarith
 
-/-- 平台利润函数关于 pu 的凹性（二阶条件） -/
-theorem profit_concave_in_pu (p : ModelParams) (v : ModelVars) :
-    deriv (fun x : ℝ => (x - p.c) * v.Q + v.pf * v.N * v.Q + v.pl * v.N) v.pu = 0 := by
-  -- 利润函数关于 pu 是线性的，一阶导数即可
-  simp
+/-- 直接效应（partial effect）：其他变量不变时，
+    用户价格上涨 → 出行量下降
 
-/-- 直观验证：用户价格上涨则出行量下降 -/
-theorem demand_decreases_in_price (p : ModelParams) (v : ModelVars) :
-    demand_eq p v → ∀ Δ > 0, p.A - p.α * (v.pu + Δ) + p.β * v.N < v.Q := by
-  intro h_demand hΔ_pos
-  have h_demand_eq := h_demand
-  rcases h_demand_eq with hQ_eq
-  -- Q = A - α·pu + β·N → 当 pu 增加 Δ，Q 减少 α·Δ
+    注意：这仅是直接效应（固定 N），
+    总效应（total effect）需通过 Q_of_p 的闭式分析。 -/
+theorem demand_decreases_in_price_partial
+    (p : ModelParams) (v : ModelVars) (h_demand : demand_eq p v) :
+    ∀ Δ > 0, p.A - p.α * (v.pu + Δ) + p.β * v.N < v.Q := by
+  intro hΔ_pos
+  rcases h_demand with hQ_eq
   calc
     p.A - p.α * (v.pu + Δ) + p.β * v.N
         = (p.A - p.α * v.pu + p.β * v.N) - p.α * Δ := by ring
     _ = v.Q - p.α * Δ := by rw [hQ_eq]
-    _ < v.Q := by
-      nlinarith [p.hα, hΔ_pos]
+    _ < v.Q := by nlinarith
 
-/-- 交叉网络效应的利己增强特性：
-    商家入驻数 N 增加会拉动出行量 Q 增加（给定 pu 不变） -/
-theorem cross_network_merchant_to_user (p : ModelParams) (v : ModelVars) (h_demand : demand_eq p v) :
+/-- 交叉网络效应的直接效应：商家入驻数 N 增加 → 出行量 Q 增加 -/
+theorem cross_network_merchant_to_user_partial
+    (p : ModelParams) (v : ModelVars) (h_demand : demand_eq p v) :
     ∀ Δ > 0, p.A - p.α * v.pu + p.β * (v.N + Δ) > v.Q := by
   intro hΔ_pos
   rcases h_demand with hQ_eq
@@ -53,17 +46,34 @@ theorem cross_network_merchant_to_user (p : ModelParams) (v : ModelVars) (h_dema
     p.A - p.α * v.pu + p.β * (v.N + Δ)
         = (p.A - p.α * v.pu + p.β * v.N) + p.β * Δ := by ring
     _ = v.Q + p.β * Δ := by rw [hQ_eq]
-    _ > v.Q := by
-      nlinarith
+    _ > v.Q := by nlinarith
 
-/-- 定理：当平台只收取入驻费时（pf = 0），
-    利润最大化 pu 的闭式解 -/
-theorem optimal_pu_with_listing_only (p : ModelParams) (v : ModelVars)
-    (h_demand : demand_eq p v) (h_pf_zero : v.pf = 0) (h_N : v.N > 0) : ℝ := by
-  -- 利润 π = (pu - c)·Q + pl·N
-  -- 代入 Q = A - α·pu + β·N
-  -- 一阶条件 ∂π/∂pu = Q - α·(pu - c) = 0 → pu* = (A + β·N)/(2α) + c/2
+/-- 平台利润关于 pu 的线性性（固定 Q,N 时） -/
+theorem profit_linear_in_pu (p : ModelParams) (v : ModelVars) :
+    (fun (pu : ℝ) => (pu - p.c) * v.Q + v.pf * v.N * v.Q + v.pl * v.N) =
+    (fun (pu : ℝ) => v.Q * pu + (v.pf * v.N * v.Q + v.pl * v.N - p.c * v.Q)) := by
+  ext pu
+  ring
+
+/-- 简化场景（pf = pl = 0）：最优 pu 的闭式解
+
+    当 pf = pl = 0 时，利润 π(pu) = (pu - c)·Q(pu)
+    代入需求方程 Q = A - α·pu + β·N
+    再代入入驻方程 N = B + γ·Q 消去 N，得 Q(pu) 闭式。
+
+    一阶条件 ∂π/∂pu = 0 给出：
+    pu* = (A + β·B - c·(1 - β·γ)) / (2α)   （当 βγ ≠ 1） -/
+theorem optimal_pu_listing_only
+    (p : ModelParams) (v : ModelVars)
+    (h_demand : demand_eq p v) (h_entry : entry_eq p v)
+    (h_pf_zero : v.pf = 0) (h_pl_zero : v.pl = 0)
+    (h_denom_nonzero : p.β * p.γ ≠ 1) :
+    let Q_closed := (p.A - p.α * v.pu + p.β * (p.B - p.δ_f * v.pf - p.δ_l * v.pl)) / (1 - p.β * p.γ) in
+    let pu_star := (p.A + p.β * p.B - p.c * (1 - p.β * p.γ)) / (2 * p.α) in
+    v.pu = pu_star := by
+  -- 推导：
+  -- 1. 由 demand_eq 和 entry_eq 消去 N 得 Q(pu)
+  -- 2. π = (pu - c)·Q(pu)
+  -- 3. ∂π/∂pu = 0 → pu*
+  -- 完整推导待补
   sorry
-
--- 需要 mathlib 的微积分与实分析支持来证明存在性与唯一性
--- 待补充：Equilibrium.exists 和 Equilibrium.unique
