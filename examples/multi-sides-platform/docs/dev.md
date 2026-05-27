@@ -67,13 +67,26 @@ MCP 的核心思想是将整个均衡系统写作"变量 \(\perp\) 互补函数"
 
 | 变量 | 边界 | 条件 | 经济含义 |
 |:----:|:----:|------|----------|
-| \(p_u\) | free | \(Q - (A - \alpha p_u + \beta N) = 0\) | 用户市场出清 |
+| \(p_u\) | free | \(Q - (A - \alpha (p_u + \lambda) + \beta N) = 0\) | 用户市场出清（含影子价格） |
 | \(p_f\) | \(\ge 0\) | \(p_f \perp \big[ -\pi_{p_f} \big] \ge 0\) | 平台流量费最优 |
 | \(p_l\) | \(\ge 0\) | \(p_l \perp \big[ -\pi_{p_l} \big] \ge 0\) | 平台入驻费最优 |
-| \(Q\) | \(0 \le Q \le M\) | \(Q \perp \big[ Q - (A - \alpha p_u + \beta N) \big] \ge 0\) | 用户需求实现（含上限） |
+| \(Q\) | \(0 \le Q \le M\) | \(Q \perp \big[ Q - (A - \alpha (p_u + \lambda) + \beta N) \big] \ge 0\) | 用户需求实现（含上限） |
 | \(N\) | \(\ge 0\) | \(N \perp \big[ N - (B + \gamma Q - \delta_f p_f - \delta_l p_l) \big] \ge 0\) | 商家入驻实现 |
+| \(\lambda\) | \(\ge 0\) | \(\lambda \perp (M - Q) \ge 0\) | 容量影子价格 |
 
 其中 \(\pi_{p_f}\) 和 \(\pi_{p_l}\) 是平台利润对流量费和入驻费的一阶偏导数，由求解器与系统其余部分联合处理。
+
+##### 容量约束与两区制
+
+当出行量未达上限（\(Q < M\)），\(\lambda = 0\)，需求方程退化为 \(Q = A - \alpha p_u + \beta N\)，FOC 基于无约束闭式解 \(Q\_of\_p\) 推导。
+
+当出行量饱和（\(Q = M\)），\(\lambda > 0\)，影子价格抬高了用户有效价格 \(p_u + \lambda\)，使得名义需求与实际供给在 \(Q = M\) 处一致。此时 \(Q\) 不再随 \(p_u\) 变化，平台 FOC 切换为饱和区形式：
+
+\[
+\frac{\partial \pi}{\partial p_u} = Q + (p_u - c + p_f N)\frac{\partial Q}{\partial p_u} + p_f Q \frac{\partial N}{\partial p_u} + p_l \frac{\partial N}{\partial p_u}
+\]
+
+当 \(Q = M\) 时 \(\partial Q/\partial p_u = 0\)（容量硬约束），且 \(N\) 独立于 \(p_u\)，因此 \(\partial \pi/\partial p_u = M > 0\)。这意味着在饱和区平台**有动机继续提价**，但受需求方程与影子价格的联合约束——\(\lambda\) 在均衡中吸收了这部分涨价压力。
 
 > **关键设计理念**：不手动化简 FOC，不代入消元，将全部变量和条件一次性交给 MCP 求解器。交叉网络效应（\(\beta, \gamma\)）的所有反馈环路在求解时由 PATH 自动处理。这保证了数学一致性，也使得模型扩展（如增加定价维度或非线性项）时只需添加变量和条件，无需重新推导。
 
