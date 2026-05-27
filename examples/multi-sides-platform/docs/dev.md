@@ -60,7 +60,7 @@
 MCP 的核心思想是将整个均衡系统写作"变量 \(\perp\) 互补函数"的形式，由求解器（PATH）**同时求解所有变量**，无需手动推导任何一阶条件的闭式解。每个变量与其对应函数的关系是：
 
 - 若变量 **free** → 函数 **= 0**（等式约束）
-- 若变量 **≥ 0** → 函数 **≤ 0**，且 `variable * function = 0`（互补松弛）
+- 若变量 **≥ 0** → 函数 **≥ 0**，且 `variable * function = 0`（互补松弛）
 - 若变量 **有上下界** → 函数在边界处可不为零
 
 完整 MCP 系统如下：
@@ -70,8 +70,8 @@ MCP 的核心思想是将整个均衡系统写作"变量 \(\perp\) 互补函数"
 | \(p_u\) | free | \(Q - (A - \alpha p_u + \beta N) = 0\) | 用户市场出清 |
 | \(p_f\) | \(\ge 0\) | \(p_f \perp \big[ -\pi_{p_f} \big] \ge 0\) | 平台流量费最优 |
 | \(p_l\) | \(\ge 0\) | \(p_l \perp \big[ -\pi_{p_l} \big] \ge 0\) | 平台入驻费最优 |
-| \(Q\) | \(0 \le Q \le M\) | \(Q \perp \big[ Q - (A - \alpha p_u + \beta N) \big] \le 0\) | 用户需求实现（含上限） |
-| \(N\) | \(\ge 0\) | \(N \perp \big[ N - (B + \gamma Q - \delta_f p_f - \delta_l p_l) \big] \le 0\) | 商家入驻实现 |
+| \(Q\) | \(0 \le Q \le M\) | \(Q \perp \big[ Q - (A - \alpha p_u + \beta N) \big] \ge 0\) | 用户需求实现（含上限） |
+| \(N\) | \(\ge 0\) | \(N \perp \big[ N - (B + \gamma Q - \delta_f p_f - \delta_l p_l) \big] \ge 0\) | 商家入驻实现 |
 
 其中 \(\pi_{p_f}\) 和 \(\pi_{p_l}\) 是平台利润对流量费和入驻费的一阶偏导数，由求解器与系统其余部分联合处理。
 
@@ -93,7 +93,8 @@ MCP 的核心思想是将整个均衡系统写作"变量 \(\perp\) 互补函数"
 """
 import sys, json
 from pyomo.environ import *
-from pyomo.mpec import Complementarity, complements
+from pyomo.mpec import Complementarity, complements, derivative
+from pyomo.opt import SolverStatus
 
 
 def build_model(params):
@@ -139,7 +140,7 @@ def build_model(params):
     )
 
     # 3. 平台利润对 p_f 最优：p_f ≥ 0 → 互补
-    #    使用 Pyomo 的 differentiate() 自动计算一阶偏导
+    #    使用 Pyomo 的 derivative() 自动计算一阶偏导
     m.foc_pf = Complementarity(
         expr=complements(m.pf, -derivative(m.profit, m.pf))
     )
@@ -163,6 +164,9 @@ def solve_and_output(params, solver='path', tee=False):
     opt = SolverFactory(solver)
     results = opt.solve(model, tee=tee)
 
+    if results.solver.status != SolverStatus.ok:
+        return {"status": str(results.solver.status), "error": "求解失败"}
+
     # 提取数值
     Q_val   = value(model.Q)
     pu_val  = value(model.pu)
@@ -174,7 +178,7 @@ def solve_and_output(params, solver='path', tee=False):
 
     profit = (pu_val - c_val) * Q_val + pf_val * N_val * Q_val + pl_val * N_val
 
-    return {
+    sol = {
         "status": str(results.solver.status),
         "Q": round(Q_val, 4),
         "pu": round(pu_val, 4),
@@ -185,6 +189,8 @@ def solve_and_output(params, solver='path', tee=False):
         "free_ride_achieved": pu_val <= 0,
         "market_saturated": abs(Q_val - M_val) < 1e-6,
     }
+    sol.update(params)
+    return sol
 
 
 def scan_parameter_range(param_name, values, fix_params=None):
@@ -215,6 +221,8 @@ def scan_parameter_range(param_name, values, fix_params=None):
               f"{'是' if sol['free_ride_achieved'] else '否':>6} "
               f"{'是' if sol['market_saturated'] else '否':>6}")
 
+    # 输出 JSON 供 Rust 消费
+    print(json.dumps(results, indent=2, ensure_ascii=False))
     return results
 
 
@@ -228,11 +236,12 @@ if __name__ == "__main__":
         if "scan" in inputs:
             # 执行参数扫描
             scan_cfg = inputs["scan"]
-            scan_parameter_range(
+            results = scan_parameter_range(
                 scan_cfg["param"],
                 scan_cfg["values"],
                 fix_params=params or None,
             )
+            # 扫描已经通过 scan_parameter_range 内部输出 JSON
         else:
             # 单点求解
             sol = solve_and_output(params, tee=False)
