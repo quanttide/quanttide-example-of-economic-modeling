@@ -6,5 +6,4 @@ package «multi-sides-platform» where
 
 @[default_target]
 lean_lib «MultiSidesPlatform» where
-  -- src dir is lean/ (default: .)
-  srcDir := "."
+  srcDir := "src/lean"
